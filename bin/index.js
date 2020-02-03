@@ -56,7 +56,7 @@ inquirer
     console.log(answers.androidDir);
     console.log(mainCmd);
     console.log(answers.gradleCmd);
-    const cmd = spawn(mainCmd, answers.gradleCmd, {cwd: `'/${answers.androidDir}'`});
+    const cmd = spawn(mainCmd, answers.gradleCmd, {cwd: path.resolve(__dirname, answers.androidDir)});
     cmd.stdout.on("data", data => {
         console.log(`${data}`);
     });
@@ -75,7 +75,7 @@ inquirer
         console.log(chalk.green.bold("-- Build successful --"));
 
         // after build finishes, prompt to select an apk
-        glob("**/*.apk", {cwd: answers.androidDir }, function (er, files) {
+        glob("**/*.apk", {cwd: path.resolve(__dirname, answers.androidDir) }, function (er, files) {
             if (files.length) {
 
                 var choices = [];
