@@ -2,18 +2,12 @@
 
 const chalk = require("chalk");
 const boxen = require("boxen");
-const { RTMClient } = require('@slack/rtm-api');
-const readline = require('readline');
-const { exec } = require("child_process");
 const path = require('path');
 const greeting = chalk.white.bold("Welcome");
 const spawn = require('cross-spawn');
 var glob = require("glob");
 var inquirer = require('inquirer');
-
-//const cmd = spawn("gradlew", ["clean", "assembleRelease"], {cwd: "../../android"});
-
-//process.exit(1);
+const initUpload = require('./gdrive')
 
 const boxenOptions = {
  padding: 1,
@@ -50,32 +44,28 @@ inquirer
     }
   ])
   .then(answers => {
-    //console.log(JSON.stringify(answers, null, '  '));
     console.log(chalk.green.bold("-- Building the apk --"));
     const mainCmd = answers.gradleCmd.shift();
-    console.log(answers.androidDir);
-    console.log(mainCmd);
-    console.log(answers.gradleCmd);
-    const cmd = spawn(mainCmd, answers.gradleCmd, {cwd: path.resolve(__dirname, answers.androidDir)});
+    const cwd = process.cwd() + path.sep + answers.androidDir;
+    console.log('cyreetnt dir', cwd);
+    const cmd = spawn(mainCmd, answers.gradleCmd, {cwd: cwd});
     cmd.stdout.on("data", data => {
         console.log(`${data}`);
     });
 
     cmd.stderr.on("data", data => {
         console.log(`stderr: ${data}`);
-        process.exit(1);
     });
 
     cmd.on('error', (error) => {
         console.log(`Erro occured: ${error.message}`);
-        process.exit(1);
     });
 
     cmd.on("close", code => {
         console.log(chalk.green.bold("-- Build successful --"));
 
         // after build finishes, prompt to select an apk
-        glob("**/*.apk", {cwd: path.resolve(__dirname, answers.androidDir) }, function (er, files) {
+        glob("**/*.apk", {cwd: cwd }, function (er, files) {
             if (files.length) {
 
                 var choices = [];
@@ -96,10 +86,19 @@ inquirer
                       /*filter: function(val) {
                         return path.basename(val);
                       }*/
+                    },
+                    {
+                      type: 'input',
+                      name: 'fileName',
+                      message: 'File name?',
+                      filter: function(val) {
+                        return val;
+                      }
                     }
                   ])
                   .then(answers => {
                     console.log(JSON.stringify(answers, null, '  '));
+                    initUpload(answers.apk, answers.fileName);
                   });
 
             }

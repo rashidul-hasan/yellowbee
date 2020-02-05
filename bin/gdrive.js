@@ -1,9 +1,11 @@
 const fs = require('fs');
+const path = require("path");
 const readline = require('readline');
 const {google} = require('googleapis');
 const cliProgress = require('cli-progress');
 const chalk = require("chalk");
 const homedir = require('os').homedir();
+const isWin = process.platform === "win32";
 const progressBar = new cliProgress.SingleBar({}, cliProgress.Presets.shades_classic);
 
 // If modifying these scopes, delete token.json.
@@ -14,14 +16,16 @@ const SCOPES = ['https://www.googleapis.com/auth/drive.file'];
 const TOKEN_PATH = homedir + '/token.json';
 
 // Load client secrets from a local file.
-fs.readFile(homedir + '/credentials.json', (err, content) => {
-  if (err) {
-    console.log(chalk.red.bold('Couldn\'t find credentials.json file inside your home directory.'));
-    process.exit(1);
-  }
-  // Authorize a client with credentials, then call the Google Drive API.
-  authorize(JSON.parse(content), upload);
-});
+function initUpload(filepath, filename) {
+  fs.readFile(homedir + '/credentials.json', (err, content) => {
+    if (err) {
+      console.log(chalk.red.bold('Couldn\'t find credentials.json file inside your home directory.'));
+      process.exit(1);
+    }
+    // Authorize a client with credentials, then call the Google Drive API.
+    authorize(JSON.parse(content), upload, filepath, filename);
+  });
+}
 
 /**
  * Create an OAuth2 client with the given credentials, and then execute the
@@ -29,7 +33,7 @@ fs.readFile(homedir + '/credentials.json', (err, content) => {
  * @param {Object} credentials The authorization client credentials.
  * @param {function} callback The callback to call with the authorized client.
  */
-function authorize(credentials, callback) {
+function authorize(credentials, callback, filepath, filename) {
   const {client_secret, client_id, redirect_uris} = credentials.installed;
   const oAuth2Client = new google.auth.OAuth2(
       client_id, client_secret, redirect_uris[0]);
@@ -38,7 +42,7 @@ function authorize(credentials, callback) {
   fs.readFile(TOKEN_PATH, (err, token) => {
     if (err) return getAccessToken(oAuth2Client, callback);
     oAuth2Client.setCredentials(JSON.parse(token));
-    callback(oAuth2Client);
+    callback(oAuth2Client, filepath, filename);
   });
 }
 
@@ -73,38 +77,16 @@ function getAccessToken(oAuth2Client, callback) {
   });
 }
 
-/**
- * Lists the names and IDs of up to 10 files.
- * @param {google.auth.OAuth2} auth An authorized OAuth2 client.
- */
-/*function listFiles(auth) {
-  const drive = google.drive({version: 'v3', auth});
-  drive.files.list({
-    pageSize: 10,
-    fields: 'nextPageToken, files(id, name)',
-  }, (err, res) => {
-    if (err) return console.log('The API returned an error: ' + err);
-    const files = res.data.files;
-    if (files.length) {
-      console.log('Files:');
-      files.map((file) => {
-        console.log(`${file.name} (${file.id})`);
-      });
-    } else {
-      console.log('No files found.');
-    }
-  });
-}*/
-
 
 // upload file to gdrive
-async function upload(auth) {
-  const fileName = 'app-kothaRelease-debug.apk';
-  const fileSize = fs.statSync(fileName).size;
+async function upload(auth, filepath, filename) {
+  fileName = isWin ? filename.replace("/", "\\") : filename;
+  const fileToUpload = process.cwd() + path.sep + filepath;
+  const fileSize = fs.statSync(fileToUpload).size;
 
   const drive = google.drive({version: 'v3', auth});
   const fileMetadata = {
-    'name': 'my new apk.apk'
+    'name': filename + '.apk'
   };
 
   progressBar.start(100, 0);
@@ -113,7 +95,7 @@ async function upload(auth) {
       resource: fileMetadata,
       requestBody: {
         // a requestBody element is required if you want to use multipart
-        'name': 'my new apk.apk'
+        'name': filename + '.apk'
       },
       media: {
         body: fs.createReadStream(fileName),
@@ -134,5 +116,6 @@ async function upload(auth) {
   progressBar.stop();
   console.log('Your apk is uploaded at: www.drive.google.com/open?id=' + res.data.id);
   process.exit(1);
-  //return res.data;
 }
+
+module.exports = initUpload;
