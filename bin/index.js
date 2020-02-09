@@ -8,6 +8,7 @@ const spawn = require('cross-spawn');
 var glob = require("glob");
 var inquirer = require('inquirer');
 const initUpload = require('./gdrive')
+const isWin = process.platform === "win32";
 
 const boxenOptions = {
  padding: 1,
@@ -29,7 +30,6 @@ inquirer
       message: 'Where is the android project located?',
       default: 'android',
       filter: function(val) {
-        //return process.cwd() + path.sep + val;
         return val;
       }
     },
@@ -47,7 +47,6 @@ inquirer
     console.log(chalk.green.bold("-- Building the apk --"));
     const mainCmd = answers.gradleCmd.shift();
     const cwd = process.cwd() + path.sep + answers.androidDir;
-    console.log('cyreetnt dir', cwd);
     const cmd = spawn(mainCmd, answers.gradleCmd, {cwd: cwd});
     cmd.stdout.on("data", data => {
         console.log(`${data}`);
@@ -72,7 +71,6 @@ inquirer
 
                 files.map( function(val, index) {
                     choices.push(val);
-                    // console.log("[ ] " + path.basename(val) + " \n");
                 });
 
                 // show prompt
@@ -97,8 +95,8 @@ inquirer
                     }
                   ])
                   .then(answers => {
-                    console.log(JSON.stringify(answers, null, '  '));
-                    initUpload(answers.apk, answers.fileName);
+                    const filepath = isWin ? answers.apk.replace(/\//g, path.sep) : answers.apk;
+                    initUpload(cwd + path.sep + filepath, answers.fileName);
                   });
 
             }
@@ -106,54 +104,3 @@ inquirer
 
     });
   });
-
-
-
-
-/*console.log(chalk.green.bold("-- Building the apk --"))
-const cmd = spawn("gradlew", ["clean", "assembleRelease"], {cwd:"../cookups/diner-app/android"});
-cmd.stdout.on("data", data => {
-    console.log(`${data}`);
-});
-
-cmd.stderr.on("data", data => {
-    console.log(`stderr: ${data}`);
-});
-
-cmd.on('error', (error) => {
-    console.log(`error: ${error.message}`);
-});
-
-cmd.on("close", code => {
-    console.log(`child process exited with code ${code}`);
-});*/
-
-/*exec("cd ../loc/android", (error, stdout, stderr) => {
-    if (error) {
-        console.log(`error: ${error.message}`);
-        return;
-    }
-    if (stderr) {
-        console.log(`stderr: ${stderr}`);
-        return;
-    }
-    
-    console.log(chalk.green.bold("-- Building the apk --"))
-    const cmd = spawn("gradlew", ["clean", "assembleRelease"], {cwd:"../loc/android"});
-	cmd.stdout.on("data", data => {
-	    console.log(`${data}`);
-	});
-
-	cmd.stderr.on("data", data => {
-	    console.log(`stderr: ${data}`);
-	});
-
-	cmd.on('error', (error) => {
-	    console.log(`error: ${error.message}`);
-	});
-
-	cmd.on("close", code => {
-	    console.log(`child process exited with code ${code}`);
-	});
-});*/
-

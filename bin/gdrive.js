@@ -5,8 +5,7 @@ const {google} = require('googleapis');
 const cliProgress = require('cli-progress');
 const chalk = require("chalk");
 const homedir = require('os').homedir();
-const isWin = process.platform === "win32";
-const progressBar = new cliProgress.SingleBar({}, cliProgress.Presets.shades_classic);
+const ora = require('ora');
 
 // If modifying these scopes, delete token.json.
 const SCOPES = ['https://www.googleapis.com/auth/drive.file'];
@@ -80,40 +79,35 @@ function getAccessToken(oAuth2Client, callback) {
 
 // upload file to gdrive
 async function upload(auth, filepath, filename) {
-  fileName = isWin ? filename.replace("/", "\\") : filename;
-  const fileToUpload = process.cwd() + path.sep + filepath;
-  const fileSize = fs.statSync(fileToUpload).size;
-
+  const fileSize = fs.statSync(filepath).size;
   const drive = google.drive({version: 'v3', auth});
   const fileMetadata = {
     'name': filename + '.apk'
   };
 
+  const progressBar = new cliProgress.SingleBar({}, cliProgress.Presets.shades_classic);
   progressBar.start(100, 0);
+  const spinner = ora('Uploading...').start();
+
   const res = await drive.files.create(
     {
       resource: fileMetadata,
       requestBody: {
-        // a requestBody element is required if you want to use multipart
         'name': filename + '.apk'
       },
       media: {
-        body: fs.createReadStream(fileName),
+        body: fs.createReadStream(filepath),
       },
     },
     {
-      // Use the `onUploadProgress` event from Axios to track the
-      // number of bytes uploaded to this point.
       onUploadProgress: evt => {
         const progress = (evt.bytesRead / fileSize) * 100;
         progressBar.update(Math.round(progress));
-        // readline.clearLine();
-        // readline.cursorTo(0);
-        //process.stdout.write(`${Math.round(progress)}% complete`);
       },
     }
   );
   progressBar.stop();
+  spinner.start();
   console.log('Your apk is uploaded at: www.drive.google.com/open?id=' + res.data.id);
   process.exit(1);
 }
